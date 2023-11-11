@@ -2,7 +2,6 @@ package com.example.serviceuser.controller;
 
 
 
-import com.example.serviceuser.pojo.LoginUser;
 import com.example.serviceuser.pojo.RegisterUser;
 import com.example.serviceuser.pojo.Role;
 import com.example.serviceuser.pojo.User;
@@ -12,13 +11,13 @@ import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.*;
 @RestController
 public class UserController {
@@ -105,7 +104,7 @@ public class UserController {
             else{
                 Map<String, Object> response = new HashMap<>();
 
-                response.put("Message" , "ใช้email นี้ไปแล้ว");
+                response.put("Message" , "emailHave");
 
                 return response;
 
@@ -143,7 +142,7 @@ public class UserController {
                 userService.updateUser(user);
 
                 Map<String, Object> response =new HashMap<>();
-                response.put("message", "อัพเดรตรหัสสำเร็จ");
+                response.put("message", "updateComplete");
                 return response;
 
             }
@@ -249,6 +248,18 @@ public class UserController {
         }
 
     }
+
+
+    @RequestMapping(value ="/file", method = RequestMethod.POST)
+   public ResponseEntity<String> storeFilesIntoDB(@RequestParam("file") MultipartFile file) throws IOException {
+
+       String response =  userService.storeFile(file);
+
+       return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    @RequestMapping(value = "/file", method = RequestMethod.GET)
+    public 
 
 
 

@@ -2,13 +2,11 @@ package com.example.serviceuser.Views;
 
 import com.example.serviceuser.pojo.User;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.H6;
 
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.internal.PendingJavaScriptInvocation;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -41,12 +39,6 @@ import java.util.function.Consumer;
 
 @Route("MainViews")
 public class MainView extends Div{
-
-
-
-
-
-
 
     public MainView() {
         Div mainContainer = new Div();
@@ -95,16 +87,44 @@ public class MainView extends Div{
         horizontalLayout.getStyle().set("margin", "200px");
 
 
+
         mainContainer.add(leftSection, horizontalLayout);
 
         add(mainContainer);
+        Dialog dialogLoginSuccess = new Dialog();
+        Dialog dialogLoginWrong = new Dialog();
+        dialogLoginSuccess.setCloseOnOutsideClick(false);
+        dialogLoginWrong.setCloseOnOutsideClick(false);
+
+        H1 dialogHeaderL = new H1("Message");
+        dialogHeaderL.getStyle().set("text-align", "center");
+        Paragraph dialogContentL = new Paragraph("Login Success");
+        Button okButtonL = new Button("OK", event -> {
+            dialogLoginSuccess.close();
+            // You can add additional logic if needed after clicking OK
+        });
+        okButtonL.getStyle().set("text-align", "center");
+
+        H1 dialogHeaderW = new H1("Message");
+        dialogHeaderW.getStyle().set("text-align", "center");
+        Paragraph dialogContentW = new Paragraph("Email or PasswordWrong");
+        Button okButtonW = new Button("OK", event -> {
+            dialogLoginWrong.close();
+            // You can add additional logic if needed after clicking OK
+        });
+        okButtonL.getStyle().set("text-align", "center");
 
 
+        dialogLoginSuccess.add(dialogHeaderL, dialogContentL, okButtonL);
+
+        dialogLoginWrong.add(dialogHeaderW, dialogContentW, okButtonW);
+
+        loadPage();
 
 
-
-
-
+        registerButton.addClickListener(event -> {
+            UI.getCurrent().navigate(RegisterPage.class);
+        });
 
         loginButton.addClickListener(event -> {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
@@ -136,8 +156,9 @@ public class MainView extends Div{
                         UI.getCurrent().access(() -> {
                             UI.getCurrent().getPage().executeJs("localStorage.setItem($0, $1)", "token", token);
 
-
+                            dialogLoginSuccess.open();
                             UI.getCurrent().navigate(UserProfile.class);
+
                         });
                     }
                     catch(Exception e){
@@ -145,65 +166,27 @@ public class MainView extends Div{
                     }
 
                 }
-                
+                else{
+                    dialogLoginWrong.open();
 
-
-
+                }
 
             }
+            else{
+                Notification.show("Password or Email is empty");
+            }
         });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    }
+    private void loadPage(){
+        String key = "token";
+        UI.getCurrent().getPage().executeJs("return localStorage.getItem($0)", key)
+                .then(String.class, this::fetchUserData);
     }
 
-
-
-//    private void LoadPage(){
-//
-
-
-
-
-
-//
-//        // Set up the request headers with the JWT token
-//        HttpHeaders headerss = new HttpHeaders();
-//        headerss.set("Authorization", "Bearer " + token);
-//
-//        // Make a GET request to the "/me" endpoint using WebClient
-//        User user = WebClient.builder()
-//
-//                .defaultHeaders(headers -> headers.addAll(headerss))
-//                .build()
-//                .get()
-//                .uri("http://localhost:8080/me")
-//                .retrieve()
-//                .bodyToMono(User.class)
-//                .block();
-//
-//
-//
-//
-//        System.out.println(user);
-
-
-//    }
-
+    private void fetchUserData(String token){
+        if(token != null){
+            UI.getCurrent().navigate(UserProfile.class);
+        }
+    }
 
 }

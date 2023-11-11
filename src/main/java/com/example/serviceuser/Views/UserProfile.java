@@ -15,19 +15,30 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
+import com.vaadin.flow.server.StreamResource;
+import org.bson.types.Binary;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
 @Route("UserProfile")
 public class UserProfile extends Div {
     private H1 name;
-    
+    private Image profileImage;
+    private Image profileImg;
+
     public UserProfile() {
         createUI();
     }
@@ -87,7 +98,7 @@ public class UserProfile extends Div {
 
         searchBar.getStyle().set("display" , "flex");
         TextField search = new TextField();
-        Image profileImage = new Image("https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Gatto_europeo4.jpg/800px-Gatto_europeo4.jpg", "cat");
+        profileImage = new Image();
         search.getStyle().set("margin", "50px").set("width", "800px");
         profileImage.getStyle().set("width", "50px").set("height", "50px").set("border-radius", "50px").set("margin-top", "50px");
 
@@ -98,7 +109,7 @@ public class UserProfile extends Div {
         Div profileBar = new Div();
         profileBar.getStyle().set("display", "flex");
 
-        Image profileImg = new Image("https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Gatto_europeo4.jpg/800px-Gatto_europeo4.jpg", "cat");
+        profileImg = new Image();
         profileImg.getStyle().set("width", "300px").set("height", "300px").set("border-radius", "50%").set("margin" , "50px");
         Div nameBar = new Div();
         name = new H1();
@@ -110,10 +121,68 @@ public class UserProfile extends Div {
         profileBar.add(profileImg, nameBar);
 
 
+        MemoryBuffer buffer = new MemoryBuffer();
+        Upload upload = new Upload(buffer);
+        upload.setAcceptedFileTypes("image/jpeg", "image/png");
+
+        Button uploadButton = new Button("Upload Image");
+
+        // Create a FormLayout to arrange components
+        FormLayout formLayout = new FormLayout();
+        formLayout.add(upload, uploadButton);
+
+        // Handle the file upload
+        upload.addSucceededListener(event -> {
+            try {
+                Binary imageData = new Binary(buffer.getInputStream().readAllBytes());
+                System.out.println(imageData);
+
+                byte[] imageDataBytes = imageData.getData();
+
+                String hexString = bytesToHex(imageDataBytes);
+
+                // Create data URI
+                String dataUri = "data:image/jpeg;base64," + hexString;
+
+                // Print the data URI
+                System.out.println(dataUri);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            // Save the image data to MongoDB
+            // Your logic to save imageData to MongoDB goes here
+
+            // Update the profile image
+            profileImg.setSrc(new StreamResource("filename", () -> {
+                try {
+
+                    return new ByteArrayInputStream(buffer.getInputStream().readAllBytes());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }));
+
+
+        });
+
+        uploadButton.addClickListener(event -> {
+            // Your logic for additional actions on button click
+            try {
+                Binary imageData = new Binary(buffer.getInputStream().readAllBytes());
+                System.out.println(imageData);
+
+
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
 
 
 
-        rightSection.add(searchBar, profileBar);
+
+
+
+        rightSection.add(searchBar, profileBar, formLayout);
 
 
 
@@ -157,6 +226,13 @@ public class UserProfile extends Div {
 
 
     }
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder hexStringBuilder = new StringBuilder(2 * bytes.length);
+        for (byte b : bytes) {
+            hexStringBuilder.append(String.format("%02x", b));
+        }
+        return hexStringBuilder.toString();
+    }
 
 
 
@@ -172,6 +248,10 @@ public class UserProfile extends Div {
     private void fetchUserData(String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + token);
+
+        if(token == null){
+            UI.getCurrent().navigate(MainView.class);
+        }
 
         try {
             String jsonResponse = WebClient.builder()
@@ -200,6 +280,9 @@ public class UserProfile extends Div {
             System.out.println("Email: " + user.getEmail());
 
             name.setText(user.getUsername());
+            profileImage.setSrc(user.getImage());
+            profileImg.setSrc(user.getImage());
+
 
 
         } catch (Exception e) {

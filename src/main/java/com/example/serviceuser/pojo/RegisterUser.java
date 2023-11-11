@@ -13,7 +13,7 @@ public class RegisterUser {
     private  String image;
     private   int credit;
 
-    public RegisterUser(String email, String password, String username, String gender, String image, int credit) {
+    public RegisterUser() {
         this.email = email;
         this.password = password;
         this.username = username;

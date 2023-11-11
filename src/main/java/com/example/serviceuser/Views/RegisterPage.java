@@ -1,17 +1,21 @@
 package com.example.serviceuser.Views;
 
+import com.example.serviceuser.pojo.RegisterUser;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.H6;
+import com.vaadin.flow.component.html.*;
 
-import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.binder.Binder;
+import com.vaadin.flow.data.validator.EmailValidator;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
 import org.springframework.core.ParameterizedTypeReference;
@@ -21,12 +25,12 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import javax.swing.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 @Route("RegisterPage")
-
 public class RegisterPage extends  Div {
     public RegisterPage() {
         Div mainContainer = new Div();
@@ -78,13 +82,70 @@ public class RegisterPage extends  Div {
 
         horizontalLayout.getStyle().set("margin", "200px");
 
-        // Add sections to the main container
+
+
         mainContainer.add(leftSection, horizontalLayout);
 
-        // Add the main container to the view
         add(mainContainer);
 
+        //validation
+        Binder<RegisterUser> binder = new Binder<>();
+
+        binder.forField(emailField)
+                .asRequired("Email is required.")
+                .withValidator(email -> email.matches(".+@.+\\..+"), "Invalid email address.")
+                .bind(RegisterUser::getEmail, RegisterUser::setEmail);
+
+        binder.forField(passwordField)
+                .asRequired("Password is required.")
+                .bind(RegisterUser::getPassword, RegisterUser::setPassword);
+
+        binder.forField(usernameField)
+                .asRequired("Username is required.")
+                .bind(RegisterUser::getUsername, RegisterUser::setUsername);
+
+        binder.forField(genderRadio)
+                .asRequired("Gender is required.")
+                .bind(RegisterUser::getGender, RegisterUser::setGender);
+
+
+
+        Dialog dialogCreateWrong = new Dialog();
+        Dialog dialogCreateSuccess = new Dialog();
+        dialogCreateSuccess.setCloseOnOutsideClick(false);
+        dialogCreateWrong.setCloseOnOutsideClick(false);
+
+        // Create components for the dialog
+        H1 dialogHeader = new H1("Message");
+        dialogHeader.getStyle().set("text-align", "center");
+        Paragraph dialogContent = new Paragraph("Your Email have user use");
+        Button okButton = new Button("OK", event -> {
+            dialogCreateWrong.close();
+            // You can add additional logic if needed after clicking OK
+        });
+
+        okButton.getStyle().set("text-align", "center");
+
+
+        dialogCreateWrong.add(dialogHeader, dialogContent, okButton);
+
+
+
+        H1 dialogHeaderS = new H1("Message");
+        dialogHeaderS.getStyle().set("text-align", "center");
+        Paragraph dialogContentS = new Paragraph("Register Success");
+        Button okButtonS = new Button("OK", event -> {
+            dialogCreateSuccess.close();
+            // You can add additional logic if needed after clicking OK
+        });
+        okButtonS.getStyle().set("text-align", "center");
+
+
+
+        dialogCreateSuccess.add(dialogHeaderS, dialogContentS, okButtonS);
+
         registersButton.addClickListener(event -> {
+
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
 
             String email = emailField.getValue();
@@ -94,29 +155,64 @@ public class RegisterPage extends  Div {
 
             System.out.println(gender);
 
+            if (binder.isValid()) {
+                // The form is valid, proceed with registration
+                RegisterUser registrationData = new RegisterUser();
+                if (binder.writeBeanIfValid(registrationData)) {
+                    // Data is valid, proceed with registration
+                    // Call the registration endpoint using registrationData
+                    if (password != "" || email != "" || username != "" || gender != null) {
+                        formData.add("email", email);
+                        formData.add("password", password);
+                        formData.add("username", username);
+                        formData.add("gender", gender);
 
-            if (password != "" || email != "" || username != "" || gender != null) {
-                formData.add("email", email);
-                formData.add("password", password);
-                formData.add("username", username);
-                formData.add("gender", gender);
+                        System.out.println(formData);
 
-                System.out.println(formData);
+                        Map<String, Object> userList = WebClient.create()
+                                .post()
+                                .uri("http://localhost:8080/register")
+                                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                                .body(BodyInserters.fromFormData(formData))
+                                .retrieve()
+                                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
+                                })
+                                .block();
 
-                Map<String, Object> userList = WebClient.create()
-                        .post()
-                        .uri("http://localhost:8080/register")
-                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                        .body(BodyInserters.fromFormData(formData))
-                        .retrieve()
-                        .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
-                        })
-                        .block();
+                        System.out.println(userList);
+                        if (userList != null) {
+                            // Loop through the entries and print each key-value pair
+                            for (Map.Entry<String, Object> entry : userList.entrySet()) {
+                                System.out.println(entry.getValue());
 
-                System.out.println(userList);
+                                if(entry.getValue().equals("emailHave")){
+                                    dialogCreateWrong.open();
+                                }
+                                else{
+                                    dialogCreateSuccess.open();
+                                    UI.getCurrent().navigate(MainView.class);
+                                }
+                            }
+                        } else {
+                            System.out.println("Response map is null.");
+                        }
+
+
+
+                    } else {
+                        System.out.println("ใส่ข้อมูลไม่ครบ");
+                    }
+
+                } else {
+                    // Failed to write bean
+                    Notification.show("Please require all data");
+                }
             } else {
-                System.out.println("ใส่ข้อมูลไม่ครบ");
+                // Show a notification or handle invalid form
+                Notification.show("Please correct the errors in the form.");
             }
+
+
 
 
         });

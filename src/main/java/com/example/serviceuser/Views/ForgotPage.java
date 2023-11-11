@@ -1,17 +1,21 @@
 package com.example.serviceuser.Views;
 
+import com.example.serviceuser.pojo.ForgotPassword;
 import com.example.serviceuser.pojo.User;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.page.History;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
 import org.springframework.core.ParameterizedTypeReference;
@@ -78,11 +82,54 @@ public class ForgotPage extends Div {
 
         horizontalLayout.getStyle().set("margin", "200px");
 
+        Binder<ForgotPassword> binder = new Binder<>();
+
+        // Define a data class to hold form data
+
+
+        // Bind form fields to the data class
+
+
+        // Add validators
+        binder.forField(emailField)
+                .asRequired("Email is required.")
+                .withValidator(email -> email.matches(".+@.+\\..+"), "Invalid email address.")
+                .bind(ForgotPassword::getEmail, ForgotPassword::setEmail);
+
+        binder.forField(passwordField)
+                .asRequired("Password is required.")
+                .bind(ForgotPassword::getPassword, ForgotPassword::setPassword);
+
+        binder.forField(confirmPasswordField)
+                .asRequired("Confirm Password is required.")
+                .withValidator(confirmPassword -> confirmPassword.equals(passwordField.getValue()), "Passwords do not match.")
+                .bind(ForgotPassword::getConfirmPassword, ForgotPassword::setConfirmPassword);
+
+
         // Add sections to the main container
         mainContainer.add(leftSection, horizontalLayout);
 
+
         // Add the main container to the view
         add(mainContainer);
+
+        Dialog dialogForgotComplete = new Dialog();
+//        Dialog dialogCreateSuccess = new Dialog();
+        dialogForgotComplete.setCloseOnOutsideClick(false);
+//        dialogCreateWrong.setCloseOnOutsideClick(false);
+
+        H1 dialogHeaderF = new H1("Message");
+        dialogHeaderF.getStyle().set("text-align", "center");
+        Paragraph dialogContentF = new Paragraph("Register Success");
+        Button okButtonF = new Button("OK", event -> {
+            dialogForgotComplete.close();
+            // You can add additional logic if needed after clicking OK
+        });
+        okButtonF.getStyle().set("text-align", "center");
+
+
+
+        dialogForgotComplete.add(dialogHeaderF, dialogContentF, okButtonF);
 
         forgotButton.addClickListener(event ->{
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
@@ -91,25 +138,48 @@ public class ForgotPage extends Div {
             String password = passwordField.getValue();
             String confirmPassword =confirmPasswordField.getValue();
 
-            if(password.equals(confirmPassword)){
-                formData.add("email", email);
-                formData.add("password", password);
+            if (binder.isValid()) {
 
-                System.out.println(formData);
+                if (password.equals(confirmPassword)) {
+                    formData.add("email", email);
+                    formData.add("password", password);
 
-                Map<String, Object> userList = WebClient.create()
-                        .post()
-                        .uri("http://localhost:8080/forgot")
-                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                        .body(BodyInserters.fromFormData(formData))
-                        .retrieve()
-                        .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                        .block();
+                    System.out.println(formData);
 
-                System.out.println(userList);
+                    Map<String, Object> userList = WebClient.create()
+                            .post()
+                            .uri("http://localhost:8080/forgot")
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .body(BodyInserters.fromFormData(formData))
+                            .retrieve()
+                            .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
+                            })
+                            .block();
+
+                    System.out.println(userList);
+
+                    if (userList != null) {
+                        // Loop through the entries and print each key-value pair
+                        for (Map.Entry<String, Object> entry : userList.entrySet()) {
+                            System.out.println(entry.getValue());
+
+                            if(entry.getValue().equals("updateComplete")) {
+                                dialogForgotComplete.open();
+                                UI.getCurrent().navigate(MainView.class);
+                            }
+                        }
+                    } else {
+                        System.out.println("Response map is null.");
+                    }
+
+                } else {
+                    System.out.println("รหัสไม่ตรงกัน");
+                }
             }
+
             else{
-                System.out.println("รหัสไม่ตรงกัน");
+                Notification.show("Please correct the errors in the form.");
+
             }
 
 
